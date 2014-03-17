@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <map>
+#include <deque>
 #include <utility>
 #include <sstream>
 #include <string>
@@ -125,34 +126,32 @@ void reset() {
 	addNumber();
 }
 
-
-// TODO - NP - Change vector<int> to a deque<int> so I can push/pop from the front
-
 // Take in a set of cells for a row/column and collapse them down
-void combine(vector<int>& cellList) {
+void combine(deque<int>& cellList) {
 	if (cellList.size() <= 1) {
 		return;
 	}
 	unsigned char index = 0;
 	while (index < cellList.size() - 1) {
 		int cell1 = cellList.at(index);
-		int cell2 = cellList.at(index+1);
+		int cell2 = cellList.at(index + 1);
 
 		if (cell1 == cell2) {
 			cellList.at(index) = cell1 * 2;
-			score += cell1;
+			score += cellList.at(index);
 			cellList.erase(cellList.begin() + index + 1);
 		}
+
 		index++;
 	}
 }
 
-// Move tiles down and return how many tiles actually moved
+// Move tiles and return how many tiles actually moved
 unsigned char moveDown() {
 	unsigned char tilesMoved = 0;
 
 	for (int ix = 0; ix < 4; ix++) {
-		vector<int> cellList;
+		deque<int> cellList;
 		for (int iy = 3; iy >= 0; iy--) {
 			if (grid[ix][iy] != 0) {
 				cellList.push_back(grid[ix][iy]);
@@ -165,8 +164,8 @@ unsigned char moveDown() {
 			tileBefore = grid[ix][iy];
 
 			if (cellList.size() > 0) {
-				grid[ix][iy] = cellList.at(0);
-				cellList.erase(cellList.begin());
+				grid[ix][iy] = cellList.front();
+				cellList.pop_front();
 			}
 			else {
 				grid[ix][iy] = 0;
@@ -184,7 +183,7 @@ unsigned char moveUp() {
 	unsigned char tilesMoved = 0;
 
 	for (int ix = 0; ix < 4; ix++) {
-		vector<int> cellList;
+		deque<int> cellList;
 		for (int iy = 0; iy < 4; iy++) {
 			if (grid[ix][iy] != 0) {
 				cellList.push_back(grid[ix][iy]);
@@ -197,8 +196,8 @@ unsigned char moveUp() {
 			tileBefore = grid[ix][iy];
 
 			if (cellList.size() > 0) {
-				grid[ix][iy] = cellList.at(0);
-				cellList.erase(cellList.begin());
+				grid[ix][iy] = cellList.front();
+				cellList.pop_front();
 			}
 			else {
 				grid[ix][iy] = 0;
@@ -217,7 +216,7 @@ unsigned char moveLeft() {
 	unsigned char tilesMoved = 0;
 
 	for (int iy = 0; iy < 4; iy++) {
-		vector<int> cellList;
+		deque<int> cellList;
 		for (int ix = 0; ix < 4; ix++) {
 			if (grid[ix][iy] != 0) {
 				cellList.push_back(grid[ix][iy]);
@@ -230,8 +229,8 @@ unsigned char moveLeft() {
 			tileBefore = grid[ix][iy];
 
 			if (cellList.size() > 0) {
-				grid[ix][iy] = cellList.at(0);
-				cellList.erase(cellList.begin());
+				grid[ix][iy] = cellList.front();
+				cellList.pop_front();
 			}
 			else {
 				grid[ix][iy] = 0;
@@ -249,7 +248,7 @@ unsigned char moveRight() {
 	unsigned char tilesMoved = 0;
 
 	for (int iy = 0; iy < 4; iy++) {
-		vector<int> cellList;
+		deque<int> cellList;
 		for (int ix = 3; ix >= 0; ix--) {
 			if (grid[ix][iy] != 0) {
 				cellList.push_back(grid[ix][iy]);
@@ -262,8 +261,8 @@ unsigned char moveRight() {
 			tileBefore = grid[ix][iy];
 
 			if (cellList.size() > 0) {
-				grid[ix][iy] = cellList.at(0);
-				cellList.erase(cellList.begin());
+				grid[ix][iy] = cellList.front();
+				cellList.pop_front();
 			}
 			else {
 				grid[ix][iy] = 0;
@@ -329,7 +328,7 @@ int main() {
 	bool scheduledNumberAdd = false;
 	sf::Clock clock;
 	clock.restart();
-	sf::Time t2 = sf::milliseconds(100);
+	sf::Time addTimeout = sf::milliseconds(75);
 
 	while (window.isOpen()) {
 		sf::Event event;
@@ -366,7 +365,7 @@ int main() {
 			}
 		}
 		
-		if (scheduledNumberAdd && clock.getElapsedTime() > t2) {
+		if (scheduledNumberAdd && clock.getElapsedTime() > addTimeout) {
 			addNumber();
 			scheduledNumberAdd = false;
 		}
