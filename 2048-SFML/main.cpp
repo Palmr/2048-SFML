@@ -9,6 +9,13 @@ using namespace std;
 
 unsigned short score = 0;
 unsigned short highScore = 0;
+
+// TODO - NP - Try animating? Have another grid of vectors for tile speed
+//             The tiles moves that far every frame unless there's a tile in its
+//             way, in which case it either combines and hides or stops moving.
+//
+//             Also need to add game-over testing and message
+
 unsigned short grid [4][4];
 struct cellCoord {
 	unsigned char x;
@@ -16,9 +23,9 @@ struct cellCoord {
 };
 
 sf::Font font;
-auto windowBGColour = sf::Color(250, 248, 239, 255);
-auto gridBGColour = sf::Color(187, 173, 160, 255);
-auto textColour = sf::Color(67, 53, 40, 255);
+sf::Color windowBGColour(250, 248, 239, 255);
+sf::Color gridBGColour(187, 173, 160, 255);
+sf::Color textColour(67, 53, 40, 255);
 map<int, sf::Color> numberColours;
 
 float padding = 10.f;
@@ -118,26 +125,32 @@ void reset() {
 	addNumber();
 }
 
+
+// TODO - NP - Change vector<int> to a deque<int> so I can push/pop from the front
+
 // Take in a set of cells for a row/column and collapse them down
-void combine(vector<int>* cellList) {
-	if (cellList->size() <= 1) {
+void combine(vector<int>& cellList) {
+	if (cellList.size() <= 1) {
 		return;
 	}
 	unsigned char index = 0;
-	while (index < cellList->size() - 1) {
-		int cell1 = cellList->at(index);
-		int cell2 = cellList->at(index+1);
+	while (index < cellList.size() - 1) {
+		int cell1 = cellList.at(index);
+		int cell2 = cellList.at(index+1);
 
 		if (cell1 == cell2) {
-			cellList->at(index) = cell1 * 2;
+			cellList.at(index) = cell1 * 2;
 			score += cell1;
-			cellList->erase(cellList->begin() + index + 1);
+			cellList.erase(cellList.begin() + index + 1);
 		}
 		index++;
 	}
 }
 
-void moveDown() {
+// Move tiles down and return how many tiles actually moved
+unsigned char moveDown() {
+	unsigned char tilesMoved = 0;
+
 	for (int ix = 0; ix < 4; ix++) {
 		vector<int> cellList;
 		for (int iy = 3; iy >= 0; iy--) {
@@ -145,9 +158,44 @@ void moveDown() {
 				cellList.push_back(grid[ix][iy]);
 			}
 		}
-		combine(&cellList);
+		combine(cellList);
+
+		unsigned short tileBefore;
+		for (int iy = 3; iy >= 0; iy--) {
+			tileBefore = grid[ix][iy];
+
+			if (cellList.size() > 0) {
+				grid[ix][iy] = cellList.at(0);
+				cellList.erase(cellList.begin());
+			}
+			else {
+				grid[ix][iy] = 0;
+			}
+
+			if (grid[ix][iy] != tileBefore) {
+				tilesMoved++;
+			}
+		}
+	}
+	return tilesMoved;
+}
+
+unsigned char moveUp() {
+	unsigned char tilesMoved = 0;
+
+	for (int ix = 0; ix < 4; ix++) {
+		vector<int> cellList;
+		for (int iy = 0; iy < 4; iy++) {
+			if (grid[ix][iy] != 0) {
+				cellList.push_back(grid[ix][iy]);
+			}
+		}
+		combine(cellList);
 		
-		for (int iy = 3; iy >= 0; iy--) {
+		unsigned short tileBefore;
+		for (int iy = 0; iy < 4; iy++) {
+			tileBefore = grid[ix][iy];
+
 			if (cellList.size() > 0) {
 				grid[ix][iy] = cellList.at(0);
 				cellList.erase(cellList.begin());
@@ -155,34 +203,19 @@ void moveDown() {
 			else {
 				grid[ix][iy] = 0;
 			}
-		}
-	}
-}
 
-void moveUp() {
-	for (int ix = 0; ix < 4; ix++) {
-		vector<int> cellList;
-		for (int iy = 0; iy < 4; iy++) {
-			if (grid[ix][iy] != 0) {
-				cellList.push_back(grid[ix][iy]);
-			}
-		}
-		combine(&cellList);
-
-		for (int iy = 0; iy < 4; iy++) {
-			if (cellList.size() > 0) {
-				grid[ix][iy] = cellList.at(0);
-				cellList.erase(cellList.begin());
-			}
-			else {
-				grid[ix][iy] = 0;
+			if (grid[ix][iy] != tileBefore) {
+				tilesMoved++;
 			}
 		}
 	}
+	return tilesMoved;
 }
 
 
-void moveLeft() {
+unsigned char moveLeft() {
+	unsigned char tilesMoved = 0;
+
 	for (int iy = 0; iy < 4; iy++) {
 		vector<int> cellList;
 		for (int ix = 0; ix < 4; ix++) {
@@ -190,9 +223,12 @@ void moveLeft() {
 				cellList.push_back(grid[ix][iy]);
 			}
 		}
-		combine(&cellList);
-
+		combine(cellList);
+		
+		unsigned short tileBefore;
 		for (int ix = 0; ix < 4; ix++) {
+			tileBefore = grid[ix][iy];
+
 			if (cellList.size() > 0) {
 				grid[ix][iy] = cellList.at(0);
 				cellList.erase(cellList.begin());
@@ -200,11 +236,18 @@ void moveLeft() {
 			else {
 				grid[ix][iy] = 0;
 			}
+
+			if (grid[ix][iy] != tileBefore) {
+				tilesMoved++;
+			}
 		}
 	}
+	return tilesMoved;
 }
 
-void moveRight() {
+unsigned char moveRight() {
+	unsigned char tilesMoved = 0;
+
 	for (int iy = 0; iy < 4; iy++) {
 		vector<int> cellList;
 		for (int ix = 3; ix >= 0; ix--) {
@@ -212,9 +255,12 @@ void moveRight() {
 				cellList.push_back(grid[ix][iy]);
 			}
 		}
-		combine(&cellList);
-
+		combine(cellList);
+		
+		unsigned short tileBefore;
 		for (int ix = 3; ix >= 0; ix--) {
+			tileBefore = grid[ix][iy];
+
 			if (cellList.size() > 0) {
 				grid[ix][iy] = cellList.at(0);
 				cellList.erase(cellList.begin());
@@ -222,8 +268,13 @@ void moveRight() {
 			else {
 				grid[ix][iy] = 0;
 			}
+
+			if (grid[ix][iy] != tileBefore) {
+				tilesMoved++;
+			}
 		}
 	}
+	return tilesMoved;
 }
 
 int main() {
@@ -237,18 +288,18 @@ int main() {
 	}
 
 	// Define colours for the cells based on their value
-	numberColours.insert(make_pair(0, sf::Color(204, 192, 179, 255)));
-	numberColours.insert(make_pair(2, sf::Color(238, 228, 218, 255)));
-	numberColours.insert(make_pair(4, sf::Color(237, 224, 200, 255)));
-	numberColours.insert(make_pair(8, sf::Color(242, 177, 121, 255)));
-	numberColours.insert(make_pair(16, sf::Color(245, 149, 99, 255)));
-	numberColours.insert(make_pair(32, sf::Color(246, 124, 95, 255)));
-	numberColours.insert(make_pair(64, sf::Color(246, 94, 59, 255)));
-	numberColours.insert(make_pair(128, sf::Color(237, 207, 114, 255)));
-	numberColours.insert(make_pair(256, sf::Color(237, 204, 97, 255)));
-	numberColours.insert(make_pair(512, sf::Color(237, 200, 80, 255)));
-	numberColours.insert(make_pair(1024, sf::Color(237, 197, 63, 255)));
-	numberColours.insert(make_pair(2048, sf::Color(237, 194, 46, 255)));
+	numberColours[0] = sf::Color(204, 192, 179, 255);
+	numberColours[2] = sf::Color(238, 228, 218, 255);
+	numberColours[4] = sf::Color(237, 224, 200, 255);
+	numberColours[8] = sf::Color(242, 177, 121, 255);
+	numberColours[16] = sf::Color(245, 149, 99, 255);
+	numberColours[32] = sf::Color(246, 124, 95, 255);
+	numberColours[64] = sf::Color(246, 94, 59, 255);
+	numberColours[128] = sf::Color(237, 207, 114, 255);
+	numberColours[256] = sf::Color(237, 204, 97, 255);
+	numberColours[512] = sf::Color(237, 200, 80, 255);
+	numberColours[1024] = sf::Color(237, 197, 63, 255);
+	numberColours[2048] = sf::Color(237, 194, 46, 255);
 
 	// Set up the grid background rect
 	gridBackgroundRect.setFillColor(gridBGColour);
@@ -287,25 +338,28 @@ int main() {
 					window.close();
 			}
 			if (event.type == sf::Event::KeyPressed && !moveDone && !scheduledNumberAdd) {
+				unsigned char tilesMoved = 0;
 				if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-					moveUp();
+					tilesMoved = moveUp();
 				}
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
-					moveRight();
+					tilesMoved = moveRight();
 				}
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
-					moveDown();
+					tilesMoved = moveDown();
 				}
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
-					moveLeft();
+					tilesMoved = moveLeft();
 				}
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Return)) {
 					reset();
 					continue;
 				}
 				moveDone = true;
-				scheduledNumberAdd = true;
-				clock.restart();
+        if (tilesMoved > 0) {
+					scheduledNumberAdd = true;
+					clock.restart();
+				}
 			}
 			if (event.type == sf::Event::KeyReleased && moveDone) {
 				moveDone = false;
@@ -315,7 +369,6 @@ int main() {
 		if (scheduledNumberAdd && clock.getElapsedTime() > t2) {
 			addNumber();
 			scheduledNumberAdd = false;
-			clock.restart();
 		}
 
 		renderScreen();
