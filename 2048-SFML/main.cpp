@@ -18,10 +18,10 @@ unsigned short highScore = 0;
 //             Also need to add game-over testing and message
 
 unsigned short grid [4][4];
-struct cellCoord {
-	unsigned char x;
-	unsigned char y;
-};
+//struct cellCoord {
+//	unsigned char x;
+//	unsigned char y;
+//};
 
 sf::Font font;
 sf::Color windowBGColour(250, 248, 239, 255);
@@ -35,11 +35,15 @@ float tileSize = (gridSize - (5 * padding)) / 4;
 
 sf::RenderWindow window(sf::VideoMode(400, 500), "2048 - Clonetastic", sf::Style::Close|sf::Style::Titlebar);
 sf::RectangleShape gridBackgroundRect(sf::Vector2f(gridSize, gridSize));
+sf::RectangleShape gameOverBackground(sf::Vector2f(gridSize, gridSize));
 sf::RectangleShape gridTile(sf::Vector2f(tileSize, tileSize));
 sf::Text titleText("2048!", font, 48);
+sf::Text gameOverText("Game Over!", font, 50);
 sf::Text scoreText(to_string(score), font, 48);
 sf::Text scoreDecoratorText("", font, 15);
 sf::Text tileText;
+
+bool showGameOver = false;
 
 void renderScreen() {
 	window.clear(windowBGColour);
@@ -75,6 +79,15 @@ void renderScreen() {
 	scoreDecoratorText.setPosition(sf::Vector2f(scoreDecoratorText.getPosition().x, 72));
 	window.draw(scoreDecoratorText);
 
+	// Handle game over display
+	if (showGameOver) {
+		window.draw(gameOverBackground);
+		window.draw(gameOverText);
+		scoreDecoratorText.setString("Hit enter to restart");
+		scoreDecoratorText.setPosition(sf::Vector2f(gameOverText.getPosition().x + 75, gameOverText.getPosition().y + gameOverText.getLocalBounds().height + padding*2));
+		window.draw(scoreDecoratorText);
+	}
+
 	window.draw(titleText);
 	window.display();
 }
@@ -106,6 +119,35 @@ void addNumber() {
 	}
 }
 
+// Return a count of tiles touching tiles of the same value
+unsigned short getMovesLeft() {
+	auto movesLeft = 0;
+	for (unsigned char ix = 0; ix < 4; ix++) {
+		for (unsigned char iy = 0; iy < 4; iy++) {
+			if (grid[ix][iy] > 0) {
+				// If it's a valid tile, look for 0's or the same tile surrounding it as valid moves
+				if (ix + 1 < 4 && (grid[ix][iy] == grid[ix+1][iy] || grid[ix+1][iy] == 0)) {
+					movesLeft++;
+				}
+				if (iy + 1 < 4 && (grid[ix][iy] == grid[ix][iy+1] || grid[ix][iy+1] == 0)) {
+					movesLeft++;
+				}
+			}
+		}
+	}
+	return movesLeft;
+}
+
+// Check for endgame conditions
+bool isGameOver() {
+	if (getEmptyCells().size() > 0 || getMovesLeft() > 0) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
 // Reset the game
 void reset() {
 	// Reset score and log if it was a new highscore
@@ -120,7 +162,10 @@ void reset() {
 			grid[ix][iy] = 0;
 		}
 	}
-	
+
+	// Turn off the game over text
+	showGameOver = false;
+
 	// Add two starting numbers
 	addNumber();
 	addNumber();
@@ -320,6 +365,13 @@ int main() {
 	tileText.setStyle(sf::Text::Bold);
 	tileText.setColor(textColour);
 
+	// Set up the game over display
+	gameOverBackground.setFillColor(sf::Color(250, 248, 239, 175));
+	gameOverBackground.setPosition(sf::Vector2f(10, 110));
+	gameOverText.setStyle(sf::Text::Bold);
+	gameOverText.setColor(textColour);
+	gameOverText.setPosition(sf::Vector2f(60, 265));
+
 	// Reset to start fresh
 	reset();
 
@@ -350,6 +402,9 @@ int main() {
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
 					tilesMoved = moveLeft();
 				}
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::O)) {
+					showGameOver = true;
+				}
 				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Return)) {
 					reset();
 					continue;
@@ -361,6 +416,12 @@ int main() {
 				}
 			}
 			if (event.type == sf::Event::KeyReleased && moveDone) {
+				printf("Emtpies: %d\r\n", getEmptyCells().size());
+				printf("Available Merges: %d\r\n", getMovesLeft());
+				if (isGameOver()) {
+					printf("\r\n\r\nGame over!\r\n\r\n");
+					showGameOver = true;
+				}
 				moveDone = false;
 			}
 		}
